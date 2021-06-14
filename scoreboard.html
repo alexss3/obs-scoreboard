@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>HBF - Score Counter</title>
+    <link href="./bootstrap.min.css" rel="stylesheet" />
+    <script src="./jquery-3.1.1.min.js"></script>
+    <script>
+        if (typeof (EBL) === "undefined") {
+            EBL = {};
+        }
+
+        EBL.Scoreboard = function ($) {
+            "use strict";
+            var _blueScore = 0;
+            var _redScore = 0;
+            var _points = {
+                'blue': 0,
+                'red': 0
+            }
+            var _blueSets = 0;
+            var _redSets = 0;
+            var _sets = {
+                'blue': 0,
+                'red': 0
+            }
+            var _totalSets = 0;
+            var _maxSets = 5;
+            var _winSets = Math.floor(_maxSets/2) + 1;
+
+            var _winner = '';
+
+            function init() {
+
+                $("button.update-name").click(function(e) {
+                    var form = $(this).parent('form');
+                    var team = form.attr('team');
+                    var nameField = $("div#"+team).children('div.name-bar').children('.player-name');
+                    var input = $("input#"+team+"-team-name");
+                    // update the player name field
+                    nameField.html(input.val());
+                });
+
+                // Score counters
+                $("button.add-point").click(function() {
+                    var team = $(this).parent().parent().attr('team');
+                    addPoint(team);
+                });
+
+                $("button.sub-point").click(function() {
+                    var team = $(this).parent().parent().attr('team');
+                    subPoint(team);
+                });
+                
+                // Timeouts         
+
+            }
+
+            function isNumber(value) {
+                if (value === null)
+                    return false;
+                return !isNaN(value);
+            }
+
+            function pad(n, width, z) {
+                z = z || '0';
+                n = n + '';
+                return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+            }
+
+            function getParameterByName(name, url) {
+                if (!url) url = window.location.href;
+                name = name.replace(/[\[\]]/g, "\\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
+            }
+
+            function addPoint(team) {
+                _points[team] += 1;                
+                crunchScores(team);
+            }
+
+            function subPoint(team) {
+                // don't go below 0
+                if (_points[team] > 0) {
+                    _points[team] -= 1;
+                }
+                crunchScores(team);
+            }
+
+            function resetPoints(team) {
+                _points[team] = 0;
+                crunchScores(team);
+            }
+
+            function addSet(team, reset=true) {
+                _sets[team] += 1;
+                if (reset) {
+                    resetPoints('blue');
+                    resetPoints('red');
+                }
+                _totalSets += 1;
+            }
+
+            function subSet(team) {
+                _sets[team] -= 1;
+                _totalSets -= 1;
+            }
+
+            function resetSets(team) {
+                _sets[team] = 0;
+                _totalSets = 0;
+            }
+
+            function updateScores() {
+                $("#blue-points .point-count").html(_points['blue']);
+                $("#red-points .point-count").html(_points['red']);
+                updateSets();
+            }
+
+            function updateSets() {
+                $('#blue-sets .set-count').html(_sets['blue']);
+                $('#red-sets .set-count').html(_sets['red']);
+            }
+
+            function crunchScores(team) {
+                
+                if (_totalSets == _maxSets - 1) {
+                    
+                    // last game, go up to 8 points, but win by two
+
+                    // 5 points reached with 2 point margin
+                    if (_points[team] >= 5 & Math.abs(_points['blue'] - _points['red'] ) == 2) {
+                        // _totalSets = _maxSets;
+                        addSet(team, false);
+                        setWinner(team);
+                    } else {
+                        // don't reset the points so they stay on screen
+                        // keep going until 8 points
+                        if (_points[team] == 8) {
+                            // addPoint(team);
+                            addSet(team, false);
+                            setWinner(team);
+                        }
+                    }   
+                } else {
+                    if (_points[team] == 5) {
+                        // increase set count
+                        addSet(team);
+
+                        if (_sets[team] == 3) {
+                            setWinner(team);
+                        }
+                    }
+                    
+                }
+
+                //if (_sets[team] == 3) {
+                //    setWinner(team);
+                //}
+
+                updateScores();
+            }
+
+            function setWinner(team) {
+                _winner = team;
+                var nameField = $('div').find("[team='" + _winner + "']").children('#' + _winner).children('.name-bar');
+                if (team == 'blue') {
+                    nameField.append('&nbsp;<span class="glyphicon glyphicon-star"></span>');
+                } else {
+                    nameField.prepend('&nbsp;<span class="glyphicon glyphicon-star"></span>');
+                }
+                //console.log(nameField);
+                //console.log(_winner);
+            }
+
+            return {
+                init: init,
+            };
+
+        }(jQuery);
+        jQuery(document).ready(EBL.Scoreboard.init);
+
+    </script>
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            background: rgb(0, 0, 0);
+        }
+
+        #wrapper {
+            margin: 10px auto;
+        }
+
+        #sb-controls {
+            clear: both;
+            margin-top: 50px;
+        }
+
+        form#blue-points, form#red-points {
+            width: 130px;
+            display: inline-block;
+            color: #fff;
+        }
+
+        form#blue-timeouts, form#red-timeouts {
+            width: 150px;
+            display: inline-block;
+            color: #fff;
+        }
+
+        #blue-wrapper, #red-wrapper {
+            display: inline-block;
+        }
+
+        #blue, #red, .set-box, .point-box {
+            display: inline-block;
+            padding: 10px 5px;
+            text-align: center;
+            border-radius: 10px;
+            -moz-border-radius: 10px;
+            -webkit-border-radius: 10px;
+            color: #fff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 24px;
+        }
+
+        #blue, #red {
+            width: 500px;
+        }
+
+        #blue .name-bar {
+            text-align: left;
+            padding-left: 20px;
+        }
+
+        #red .name-bar {
+            text-align: right;
+            padding-right: 20px;
+        }
+
+        .set-box, .point-box {
+            width: 50px;
+        }
+
+        #spacer {
+            display: inline-block;
+            height: 50px;
+            width: 20px;
+        }
+
+        .set-box {
+            background: rgba(255,245,54,1);
+            background: -moz-linear-gradient(top, rgba(255,245,54,1) 0%, rgba(201,201,0,1) 100%);
+            background: -webkit-gradient(left top, left bottom, color-stop(0%, rgba(255,245,54,1)), color-stop(100%, rgba(201,201,0,1)));
+            background: -webkit-linear-gradient(top, rgba(255,245,54,1) 0%, rgba(201,201,0,1) 100%);
+            background: -o-linear-gradient(top, rgba(255,245,54,1) 0%, rgba(201,201,0,1) 100%);
+            background: -ms-linear-gradient(top, rgba(255,245,54,1) 0%, rgba(201,201,0,1) 100%);
+            background: linear-gradient(to bottom, rgba(255,245,54,1) 0%, rgba(201,201,0,1) 100%);
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fff536', endColorstr='#c9c900', GradientType=0 );
+            color: #000;
+        }
+
+        .point-box {
+            background: rgba(128,128,128,1);
+            background: -moz-linear-gradient(top, rgba(128,128,128,1) 0%, rgba(23,23,23,1) 100%);
+            background: -webkit-gradient(left top, left bottom, color-stop(0%, rgba(128,128,128,1)), color-stop(100%, rgba(23,23,23,1)));
+            background: -webkit-linear-gradient(top, rgba(128,128,128,1) 0%, rgba(23,23,23,1) 100%);
+            background: -o-linear-gradient(top, rgba(128,128,128,1) 0%, rgba(23,23,23,1) 100%);
+            background: -ms-linear-gradient(top, rgba(128,128,128,1) 0%, rgba(23,23,23,1) 100%);
+            background: linear-gradient(to bottom, rgba(128,128,128,1) 0%, rgba(23,23,23,1) 100%);
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#808080', endColorstr='#171717', GradientType=0 );
+        }
+
+        #blue {
+            background: rgba(143,233,255,1);
+            background: -moz-linear-gradient(top, rgba(143,233,255,1) 0%, rgba(7,164,212,1) 100%);
+            background: -webkit-gradient(left top, left bottom, color-stop(0%, rgba(143,233,255,1)), color-stop(100%, rgba(7,164,212,1)));
+            background: -webkit-linear-gradient(top, rgba(143,233,255,1) 0%, rgba(7,164,212,1) 100%);
+            background: -o-linear-gradient(top, rgba(143,233,255,1) 0%, rgba(7,164,212,1) 100%);
+            background: -ms-linear-gradient(top, rgba(143,233,255,1) 0%, rgba(7,164,212,1) 100%);
+            background: linear-gradient(to bottom, rgba(143,233,255,1) 0%, rgba(7,164,212,1) 100%);
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#8fe9ff', endColorstr='#07a4d4', GradientType=0 );
+        }
+
+        #red {
+            background: rgba(255,93,177,1);
+            background: -moz-linear-gradient(top, rgba(255,93,177,1) 0%, rgba(239,1,124,1) 100%);
+            background: -webkit-gradient(left top, left bottom, color-stop(0%, rgba(255,93,177,1)), color-stop(100%, rgba(239,1,124,1)));
+            background: -webkit-linear-gradient(top, rgba(255,93,177,1) 0%, rgba(239,1,124,1) 100%);
+            background: -o-linear-gradient(top, rgba(255,93,177,1) 0%, rgba(239,1,124,1) 100%);
+            background: -ms-linear-gradient(top, rgba(255,93,177,1) 0%, rgba(239,1,124,1) 100%);
+            background: linear-gradient(to bottom, rgba(255,93,177,1) 0%, rgba(239,1,124,1) 100%);
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff5db1', endColorstr='#ef017c', GradientType=0 );
+        }
+
+        .player-name {
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+        }
+
+        .glyphicon {
+            cursor: pointer;
+        }
+
+        .controls {
+            /*display: none;*/
+            visibility: hidden;
+            z-index: 100;
+            position: absolute;
+            top: 60px;
+            color: #fff;
+        }
+
+        .control:hover .controls {
+            /*display: block;*/
+            visibility: visible;
+        }
+        
+        .resetscore, .plusscore, .minusscore, #resettimer, #plus, #minus, #play {
+            font-size: 20px;
+            color: #fff;
+        }
+
+        [contenteditable] {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div id="wrapper">
+        <div class="row">
+            <div class="col-md-1"></div>
+            <div id="blue-wrapper" team="blue" class="col-md-5">
+                <div id="blue">
+                    <div class="name-bar">
+                        <span class="player-name">Team 1</span>
+                    </div>
+                </div>
+                <div id="blue-sets" class="set-box">
+                    <span class="set-count">0</span>
+                </div>
+                <div id="blue-points" class="point-box">
+                    <span class="point-count">0</span>
+                </div>
+            </div>
+
+            
+            
+            <div id="red-wrapper" team="red" class="col-md-5">
+                <div id="red-points" class="point-box">
+                    <span class="point-count">0</span>
+                </div>
+                <div id="red-sets" class="set-box">
+                    <span class="set-count">0</span>
+                </div>
+                <div id="red">
+                    <div class="name-bar">
+                        <span class="player-name">Team 2</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-1"></div>
+        </div>
+        
+        <div class="row" id="sb-controls">
+            <div class="col-md-1"></div>
+            <div class="col-md-2">
+                <form class="form-inline" id="blue-name" team="blue">
+                    <div class="form-group">
+                        <input type="text" id="blue-team-name" class="form-control" value="" placeholder="Blue Team" />
+                    </div>
+                    <button type="button" class="btn btn-primary update-name"><span class="glyphicon glyphicon-ok"></span></button>
+                </form>
+            </div>
+            <div class="col-md-3">
+                <form class="form-inline" id="blue-points" team="blue">
+                    <div class="form-group">
+                        <span>Points</span>
+                        <button type="button" class="btn btn-primary sub-point"><span class="glyphicon glyphicon-minus"></span></button>
+                        <button type="button" class="btn btn-primary add-point"><span class="glyphicon glyphicon-plus"></span></button>
+                    </div>
+                </form>
+
+                <form class="form-inline" id="blue-timeouts" team="blue">
+                    <div class="form-group">
+                        <span>Timeouts</span>
+                        <button type="button" class="btn btn-primary sub-timeout"><span class="glyphicon glyphicon-minus"></span></button>
+                        <button type="button" class="btn btn-primary add-timeout"><span class="glyphicon glyphicon-plus"></span></button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-3">
+                <form class="form-inline" id="red-timeouts" team="red">
+                    <div class="form-group">
+                        <button type="button" class="btn btn-primary add-timeout"><span class="glyphicon glyphicon-plus"></span></button>
+                        <button type="button" class="btn btn-primary sub-timeout"><span class="glyphicon glyphicon-minus"></span></button>
+                        <span>Timeouts</span>
+                    </div>
+                </form>
+
+                <form class="form-inline" id="red-points" team="red">
+                    <div class="form-group">
+                        <button type="button" class="btn btn-primary add-point"><span class="glyphicon glyphicon-plus"></span></button>
+                        <button type="button" class="btn btn-primary sub-point"><span class="glyphicon glyphicon-minus"></span></button>
+                        <span>Points</span>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-2">
+                <form class="form-inline" id="red-name" team="red">
+                    <div class="form-group">
+                        <input type="text" id="red-team-name" class="form-control" value="" placeholder="Red Team" />
+                    </div>
+                    <button type="button" class="btn btn-primary update-name"><span class="glyphicon glyphicon-ok"></span></button>
+                </form>
+            </div>
+            <div class="col-md-1"></div>
+        </div>
+        <div >
+            
+            
+        </div>
+    </div>
+</body>
+</html>
